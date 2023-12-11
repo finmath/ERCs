@@ -2,6 +2,7 @@ const { ethers } = require("hardhat");
 const { expect } = require("chai");
 const AbiCoder = ethers.utils.AbiCoder;
 const Keccak256 = ethers.utils.keccak256;
+const crypto = require('crypto');
 
 describe("Livecycle Unit-Tests for Delivery-vs-Payment", () => {
 const abiCoder = new AbiCoder();
@@ -16,13 +17,28 @@ const abiCoder = new AbiCoder();
   let paymentAmount = 9000;
 
   before(async () => {
+  //https://www.geeksforgeeks.org/node-js-crypto-publicencrypt-method/
+  const keyPair = crypto.generateKeyPairSync('rsa', {
+          modulusLength: 520,
+          publicKeyEncoding: {
+              type: 'spki',
+              format: 'pem'
+          },
+          privateKeyEncoding: {
+          type: 'pkcs8',
+          format: 'pem',
+          cipher: 'aes-256-cbc',
+          passphrase: ''
+          }
+      });
+    console.log(keyPair.publicKey);
     const [_buyer, _seller] = await ethers.getSigners();
     buyer = _buyer;
     seller = _seller;
     const deliveryContractFactory = await ethers.getContractFactory("DeliveryContract");
     const paymentContractFactory = await ethers.getContractFactory("PaymentContract");
-    deliveryContract = await deliveryContractFactory.deploy(buyer,seller);
-    paymentContract = await paymentContractFactory.deploy(buyer,seller);
+    deliveryContract = await deliveryContractFactory.deploy(buyer.address,seller.address);
+    paymentContract = await paymentContractFactory.deploy(buyer.address,seller.address);
     await deliveryContract.deployed();
     await paymentContract.deployed();
     console.log("DeliveryContract Address: %s", deliveryContract.address);
@@ -30,9 +46,9 @@ const abiCoder = new AbiCoder();
   });
 
   it("Transfer Incept", async () => {
-     string keyEncryptedSeller = "key";
-     const call = await deliveryContract.connect(buyer).inceptTransfer(id, assetAmount, seller, keyEncryptedSeller) ;
-     await expect(call).to.emit(sdc, "AssetTransferIncepted");
+     let keyEncryptedSeller = "key";
+     const call = await deliveryContract.connect(buyer).inceptTransfer(id, assetAmount, seller.address, keyEncryptedSeller) ;
+     await expect(call).to.emit(deliveryContract, "AssetTransferIncepted");
   });
 
 
